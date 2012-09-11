@@ -1,7 +1,10 @@
+import datetime
 import email.message
+import email.utils
 import json
 import requests
 import subprocess
+import time
 
 URL = 'http://api.thriftdb.com/api.hnsearch.com/items/_search'
 
@@ -25,6 +28,13 @@ def payload(h):
         return h['url']
     return h['text']
 
+def convert_time(s):
+    "Convert a RFC8601 date to a RFC822 date"
+    dt = datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+    tt = dt.timetuple()
+    ti = time.mktime(tt)
+    return email.utils.formatdate(ti)
+
 def build_email(h):
     e = email.message.Message()
     e['Subject'] = "[HN] "
@@ -32,6 +42,7 @@ def build_email(h):
     e['Message-ID'] = msg_id(h['id'])
     e['User-Agent'] = 'hnmail'
     e['Content-type'] = 'text/plain; charset="utf-8"'
+    e['Date'] = convert_time(h['create_ts'])
     p = payload(h)
     p = p.encode('utf-8')
     set_reply_to(e, h)
