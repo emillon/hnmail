@@ -31,8 +31,11 @@ def build_email(h):
     e['From'] = h['username'] + '-hn@example.com'
     e['Message-ID'] = msg_id(h['id'])
     e['User-Agent'] = 'hnmail'
+    e['Content-type'] = 'text/plain; charset="utf-8"'
+    p = payload(h)
+    p = p.encode('utf-8')
     set_reply_to(e, h)
-    e.set_payload(payload(h))
+    e.set_payload(p)
     return e
 
 def send_to_mda(e):
