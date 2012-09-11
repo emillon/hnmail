@@ -1,4 +1,5 @@
 import datetime
+import email.charset
 import email.message
 import email.utils
 import json
@@ -41,12 +42,11 @@ def build_email(h):
     e['From'] = h['username'] + '-hn@example.com'
     e['Message-ID'] = msg_id(h['id'])
     e['User-Agent'] = 'hnmail'
-    e['Content-type'] = 'text/plain; charset="utf-8"'
     e['Date'] = convert_time(h['create_ts'])
     p = payload(h)
-    p = p.encode('utf-8')
     set_reply_to(e, h)
-    e.set_payload(p)
+    c = email.charset.Charset('utf-8')
+    e.set_payload(p, c)
     return e
 
 def send_to_mda(e):
