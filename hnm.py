@@ -46,7 +46,7 @@ def send_to_mda(e):
 def main():
     n = 100
     h = hnget(limit=n, sortby='create_ts desc')
-    i = 0
+    i = 1
     for r in h['results']:
         print '%d/%d' % (i, n)
         i += 1
