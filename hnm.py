@@ -21,7 +21,7 @@ def set_reply_to(e, h):
         e['In-Reply-To'] = msg_id(pid)
 
 def payload(h):
-    if h['type'] == 'submission':
+    if h['type'] == 'submission' and h['url'] is not None:
         return h['url']
     return h['text']
 
