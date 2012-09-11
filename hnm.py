@@ -36,9 +36,14 @@ def convert_time(s):
     ti = time.mktime(tt)
     return email.utils.formatdate(ti)
 
+def subject(h):
+    if h['type'] == 'submission':
+        return h['title']
+    return "Re: %s" % h['discussion']['title']
+
 def build_email(h):
     e = email.message.Message()
-    e['Subject'] = "[HN] "
+    e['Subject'] = subject(h)
     e['From'] = h['username'] + '-hn@example.com'
     e['Message-ID'] = msg_id(h['id'])
     e['User-Agent'] = 'hnmail'
