@@ -84,7 +84,7 @@ def build_email(item):
     """
     mail = email.message.Message()
     mail['Subject'] = subject(item)
-    mail['From'] = item['username'] + '-hn@example.com'
+    mail['From'] = '{0} <{0}-hn@example.com>'.format(item['username'])
     mail['Message-ID'] = msg_id(item['id'])
     mail['User-Agent'] = 'hnmail'
     mail['Date'] = convert_time(item['create_ts'])
@@ -128,6 +128,38 @@ class State:
     def __setitem__(self, key, value):
         self.data[key] = value
 
+    def __contains__(self, item):
+        return item in self.data
+
+def fetch_thread(disc_sigid):
+    """
+    Fetch the whole thread with given signed ID.
+    """
+    worklist = [disc_sigid]
+    results = []
+    while worklist:
+        sigid = worklist.pop(0)
+        params = { 'filter[fields][parent_sigid]': sigid
+                 , 'sortby': 'create_ts desc'
+                 }
+        response = hnget(**params)
+        for result in response['results']:
+            item = result['item']
+            child_id = item['_id']
+            worklist.append(child_id)
+            results.append(item)
+    return results
+
+def handle_item(state, item):
+    """
+    Build and send an email for a given item.
+    """
+    item_date = from_rfc8601(item['create_ts'])
+    if 'run_date' in state and item_date < state['run_date']:
+        return
+    mail = build_email(item)
+    send_to_mda(mail)
+
 def main():
     """
     Program entry point.
@@ -137,15 +169,15 @@ def main():
         num_threads = 100
         response = hnget(limit=num_threads, sortby='create_ts desc')
         results = response['results']
-        i = 1
         for result in results:
-            print '%d/%d' % (i, num_threads)
-            i += 1
             item = result['item']
-            if from_rfc8601(item['create_ts']) < state['run_date']:
-                continue
-            mail = build_email(item)
-            send_to_mda(mail)
+            if item['type'] == 'submission':
+                print "%d - %s" % (item['id'], item['title'])
+                handle_item(state, item)
+            else:
+                print "%d - %s" % (item['id'], item['discussion']['title'])
+                for item in fetch_thread(item['discussion']['sigid']):
+                    handle_item(state, item)
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
 
