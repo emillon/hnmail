@@ -72,7 +72,10 @@ class State:
         except IOError, e:
             self.data = {}
 
-    def save(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, typ, value, traceback):
         with open(self.file_name, 'w') as f:
             pickle.dump(self.data, f)
 
@@ -81,19 +84,18 @@ class State:
 
 def main():
     state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
-    state = State(state_file)
-    n = 100
-    h = hnget(limit=n, sortby='create_ts desc')
-    i = 1
-    newest = h['results'][0]['item']
-    state['run_date'] = newest['create_ts']
-    for r in h['results']:
-        print '%d/%d' % (i, n)
-        i += 1
-        r = r['item']
-        e = build_email(r)
-        send_to_mda(e)
-    state.save()
+    with State(state_file) as state:
+        n = 100
+        h = hnget(limit=n, sortby='create_ts desc')
+        i = 1
+        newest = h['results'][0]['item']
+        state['run_date'] = newest['create_ts']
+        for r in h['results']:
+            print '%d/%d' % (i, n)
+            i += 1
+            r = r['item']
+            e = build_email(r)
+            send_to_mda(e)
 
 if __name__ == '__main__':
     main()
