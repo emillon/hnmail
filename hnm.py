@@ -33,9 +33,12 @@ def payload(h):
         return h['url']
     return h['text']
 
+def from_rfc8601(s):
+    return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+
 def convert_time(s):
     "Convert a RFC8601 date to a RFC822 date"
-    dt = datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+    dt = from_rfc8601(s)
     tt = dt.timetuple()
     ti = time.mktime(tt)
     return email.utils.formatdate(ti)
@@ -79,6 +82,9 @@ class State:
         with open(self.file_name, 'w') as f:
             pickle.dump(self.data, f)
 
+    def __getitem__(self, k):
+        return self.data[k]
+
     def __setitem__(self, k, v):
         self.data[k] = v
 
@@ -88,14 +94,16 @@ def main():
         n = 100
         h = hnget(limit=n, sortby='create_ts desc')
         i = 1
-        newest = h['results'][0]['item']
-        state['run_date'] = newest['create_ts']
         for r in h['results']:
             print '%d/%d' % (i, n)
             i += 1
             r = r['item']
+            if from_rfc8601(r['create_ts']) < state['run_date']:
+                continue
             e = build_email(r)
             send_to_mda(e)
+        newest = h['results'][0]['item']
+        state['run_date'] = from_rfc8601(newest['create_ts'])
 
 if __name__ == '__main__':
     main()
