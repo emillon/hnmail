@@ -63,20 +63,21 @@ def send_to_mda(e):
     proc.communicate(e.as_string())
     proc.stdin.close()
 
-class State(dict):
+class State:
     def __init__(self):
-        dict.__init__(self)
         self.file_name = os.path.join(save_data_path('hnmail'), 'state.pickle')
         try:
             with open(self.file_name) as f:
-                d = pickle.load(f)
+                self.data = pickle.load(f)
         except IOError, e:
-            d = {}
-        self.data = d
+            self.data = {}
 
     def save(self):
         with open(self.file_name, 'w') as f:
-            pickle.dump(self, f)
+            pickle.dump(self.data, f)
+
+    def __setitem__(self, k, v):
+        self.data[k] = v
 
 def main():
     state = State()
