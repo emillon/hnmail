@@ -24,8 +24,8 @@ def hnget(**params):
     Get results from the Hacker News ThriftDB API.
     The documentation of this API is available at:
     http://www.hnsearch.com/api
-    Keyword arguments are passed as GET parameters and the result is returned as a
-    JSON object.
+    Keyword arguments are passed as GET parameters and the result is returned as
+    a JSON object.
     """
     response = requests.get(URL, params=params)
     return json.loads(response.text)
