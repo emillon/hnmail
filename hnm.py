@@ -64,8 +64,8 @@ def send_to_mda(e):
     proc.stdin.close()
 
 class State:
-    def __init__(self):
-        self.file_name = os.path.join(save_data_path('hnmail'), 'state.pickle')
+    def __init__(self, file_name):
+        self.file_name = file_name
         try:
             with open(self.file_name) as f:
                 self.data = pickle.load(f)
@@ -80,7 +80,8 @@ class State:
         self.data[k] = v
 
 def main():
-    state = State()
+    state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
+    state = State(state_file)
     n = 100
     h = hnget(limit=n, sortby='create_ts desc')
     i = 1
