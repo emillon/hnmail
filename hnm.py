@@ -34,7 +34,7 @@ def msg_id(item_id):
     """
     Build a RFC822 Message-ID from a HN item id.
     """
-    return '%d-msg@example.com' % item_id
+    return '<%d-msg@example.com>' % item_id
 
 def set_reply_to(mail, item):
     """
