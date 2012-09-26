@@ -82,13 +82,14 @@ class Item:
         """
         return "Re: %s" % self.data['discussion']['title']
 
-    def send_as_email(self, state):
+    def needs_to_be_sent(self, state):
+        item_date = from_rfc8601(self.data['create_ts'])
+        return ('run_date' not in state or item_date > state['run_date'])
+
+    def send_as_email(self):
         """
         Build and send an email for a given item.
         """
-        item_date = from_rfc8601(self.data['create_ts'])
-        if 'run_date' in state and item_date < state['run_date']:
-            return
         mail = build_email(self)
         send_to_mda(mail)
 
@@ -201,17 +202,19 @@ def main():
             item = result['item']
             if item['type'] == 'submission':
                 obj = build_item(item)
-                print "%d - %s" % (item['id'], item['title'])
-                obj.send_as_email(state)
+                if obj.needs_to_be_sent(state):
+                    print "%d - %s" % (item['id'], item['title'])
+                    obj.send_as_email()
             else:
                 disc = item['discussion']
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
         for (disc_id, (sigid, title)) in discussions.iteritems():
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(sigid):
-                item.send_as_email(state)
-                sys.stdout.write('.')
-                sys.stdout.flush()
+                if obj.needs_to_be_sent(state):
+                    item.send_as_email()
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
             print ""
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
