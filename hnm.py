@@ -169,15 +169,19 @@ def main():
         num_threads = 100
         response = hnget(limit=num_threads, sortby='create_ts desc')
         results = response['results']
+        discussions = {}
         for result in results:
             item = result['item']
             if item['type'] == 'submission':
                 print "%d - %s" % (item['id'], item['title'])
                 handle_item(state, item)
             else:
-                print "%d - %s" % (item['id'], item['discussion']['title'])
-                for item in fetch_thread(item['discussion']['sigid']):
-                    handle_item(state, item)
+                disc = item['discussion']
+                discussions[disc['id']] = (disc['sigid'], disc['title'])
+        for (disc_id, (sigid, title)) in discussions.iteritems():
+            print "%d - %s" % (disc_id, title)
+            for item in fetch_thread(sigid):
+                handle_item(state, item)
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
 
