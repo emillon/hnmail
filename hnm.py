@@ -19,7 +19,7 @@ URL = 'http://api.thriftdb.com/api.hnsearch.com/items/_search'
 
 MDA = 'procmail'
 
-def hnget(**params):
+def hnget(params):
     """
     Get results from the Hacker News ThriftDB API.
     The documentation of this API is available at:
@@ -142,7 +142,7 @@ def fetch_thread(disc_sigid):
         params = { 'filter[fields][parent_sigid]': sigid
                  , 'sortby': 'create_ts desc'
                  }
-        response = hnget(**params)
+        response = hnget(params)
         for result in response['results']:
             item = result['item']
             child_id = item['_id']
@@ -167,7 +167,10 @@ def main():
     state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
     with State(state_file) as state:
         num_threads = 100
-        response = hnget(limit=num_threads, sortby='create_ts desc')
+        params = { 'limit': num_threads
+                 , 'sortby': 'create_ts desc'
+                 }
+        response = hnget(params)
         results = response['results']
         discussions = {}
         for result in results:
