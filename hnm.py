@@ -67,14 +67,6 @@ class Item:
         """
         return self.data['text']
 
-    def set_reply_to(self, mail):
-        """
-        Set the In-Reply-To field of an email.
-        """
-        pid = self.data['parent_id']
-        if pid is not None:
-            mail['In-Reply-To'] = msg_id(pid)
-
     def subject(self):
         """
         Compute the subject of an item.
@@ -90,17 +82,25 @@ class Item:
         """
         Build and send an email for a given item.
         """
-        mail = build_email(self)
+        mail = self.build_email()
         send_to_mda(mail)
-
-    def username(self):
-        return self.data['username']
-
-    def ident(self):
-        return self.data['id']
 
     def creation_date(self):
         return from_rfc8601(self.data['create_ts'])
+
+    def build_email(self):
+        mail = email.message.Message()
+        mail['Subject'] = self.subject()
+        mail['From'] = '{0} <{0}-hn@example.com>'.format(self.data['username'])
+        mail['Message-ID'] = msg_id(self.data['id'])
+        mail['User-Agent'] = 'hnmail'
+        mail['Date'] = to_rfc822(self.creation_date())
+        pid = self.data['parent_id']
+        if pid is not None:
+            mail['In-Reply-To'] = msg_id(pid)
+        charset = email.charset.Charset('utf-8')
+        mail.set_payload(self.payload(), charset)
+        return mail
 
 class SubmissionItem(Item):
     def payload(self):
@@ -112,21 +112,6 @@ class SubmissionItem(Item):
 class TextItem(Item):
     def subject(self):
         return self.data['title']
-
-def build_email(item):
-    """
-    Build an email from a HN item.
-    """
-    mail = email.message.Message()
-    mail['Subject'] = item.subject()
-    mail['From'] = '{0} <{0}-hn@example.com>'.format(item.username())
-    mail['Message-ID'] = msg_id(item.ident())
-    mail['User-Agent'] = 'hnmail'
-    mail['Date'] = to_rfc822(item.creation_date())
-    item.set_reply_to(mail)
-    charset = email.charset.Charset('utf-8')
-    mail.set_payload(item.payload(), charset)
-    return mail
 
 def send_to_mda(mail):
     """
