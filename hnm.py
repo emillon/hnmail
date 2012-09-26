@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 hnmail - mail gateway for Hacker News
 """
