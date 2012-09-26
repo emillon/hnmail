@@ -171,7 +171,6 @@ def fetch_thread(disc_sigid):
     """
     max_res = 10
     worklist = [disc_sigid]
-    results = []
     while worklist:
         sigid = worklist.pop(0)
         params = { 'filter[fields][parent_sigid]': sigid
@@ -183,9 +182,7 @@ def fetch_thread(disc_sigid):
             item = result['item']
             child_id = item['_id']
             worklist.append(child_id)
-            obj = build_item(item)
-            results.append(obj)
-    return results
+            yield build_item(item)
 
 def main():
     """
@@ -214,6 +211,7 @@ def main():
             for item in fetch_thread(sigid):
                 item.send_as_email(state)
                 sys.stdout.write('.')
+                sys.stdout.flush()
             print ""
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
