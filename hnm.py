@@ -2,6 +2,11 @@
 hnmail - mail gateway for Hacker News
 """
 
+__author__ = 'Etienne Millon'
+__email__ = 'me AT emillon.org'
+__license__ = 'BSD-3'
+__status__ = 'Prototype'
+
 import datetime
 import email.charset
 import email.message
