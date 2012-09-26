@@ -49,6 +49,9 @@ def from_rfc8601(rfc8601_dt):
     return datetime.datetime.strptime(rfc8601_dt, "%Y-%m-%dT%H:%M:%SZ")
 
 def to_rfc822(dtime):
+    """
+    Convert a datetime object to a RFC822 string
+    """
     timetuple = dtime.timetuple()
     localtime = time.mktime(timetuple)
     return email.utils.formatdate(localtime)
