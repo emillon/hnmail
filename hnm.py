@@ -36,61 +36,94 @@ def msg_id(item_id):
     """
     return '<%d-msg@example.com>' % item_id
 
-def set_reply_to(mail, item):
-    """
-    Set the In-Reply-To field of an email.
-    """
-    pid = item['parent_id']
-    if pid is not None:
-        mail['In-Reply-To'] = msg_id(pid)
-
-def payload(item):
-    """
-    Compute the payload of the email corresponding to a given HN item.
-    Depending on the type of item (submission, discussion, etc), it will either
-    include a link or the text of the submission.
-    """
-    if item['type'] == 'submission' and item['url'] is not None:
-        return item['url']
-    return item['text']
-
 def from_rfc8601(rfc8601_dt):
     """
     Convert a RFC8601 datetime to a datetime object.
     """
     return datetime.datetime.strptime(rfc8601_dt, "%Y-%m-%dT%H:%M:%SZ")
 
-def convert_time(rfc8601_dt):
-    """
-    Convert a RFC8601 date to a RFC822 date
-    """
-    dtime = from_rfc8601(rfc8601_dt)
+def to_rfc822(dtime):
     timetuple = dtime.timetuple()
     localtime = time.mktime(timetuple)
     return email.utils.formatdate(localtime)
 
-def subject(item):
-    """
-    Compute the subject of an item.
-    If this is not a submission, it will include a "Re: " prefix.
-    """
-    if item['type'] == 'submission':
-        return item['title']
-    return "Re: %s" % item['discussion']['title']
+def build_item(data):
+    if data['type'] == 'submission':
+        if data['url'] is None:
+            return TextItem(data)
+        else:
+            return SubmissionItem(data)
+    else:
+        return Item(data)
+
+class Item:
+    def __init__(self, data):
+        self.data = data
+
+    def payload(self):
+        """
+        Compute the payload of the email corresponding to a given HN item.
+        """
+        return self.data['text']
+
+    def set_reply_to(self, mail):
+        """
+        Set the In-Reply-To field of an email.
+        """
+        pid = self.data['parent_id']
+        if pid is not None:
+            mail['In-Reply-To'] = msg_id(pid)
+
+    def subject(self):
+        """
+        Compute the subject of an item.
+        If this is not a submission, it will include a "Re: " prefix.
+        """
+        return "Re: %s" % self.data['discussion']['title']
+
+    def send_as_email(self, state):
+        """
+        Build and send an email for a given item.
+        """
+        item_date = from_rfc8601(self.data['create_ts'])
+        if 'run_date' in state and item_date < state['run_date']:
+            return
+        mail = build_email(self)
+        send_to_mda(mail)
+
+    def username(self):
+        return self.data['username']
+
+    def ident(self):
+        return self.data['id']
+
+    def creation_date(self):
+        return from_rfc8601(self.data['create_ts'])
+
+class SubmissionItem(Item):
+    def payload(self):
+        return self.data['url']
+
+    def subject(self):
+        return self.data['title']
+
+class TextItem(Item):
+    def subject(self):
+        return self.data['title']
 
 def build_email(item):
     """
     Build an email from a HN item.
     """
     mail = email.message.Message()
-    mail['Subject'] = subject(item)
-    mail['From'] = '{0} <{0}-hn@example.com>'.format(item['username'])
-    mail['Message-ID'] = msg_id(item['id'])
+    mail['Subject'] = item.subject()
+    mail['From'] = '{0} <{0}-hn@example.com>'.format(item.username())
+    mail['Message-ID'] = msg_id(item.ident())
     mail['User-Agent'] = 'hnmail'
-    mail['Date'] = convert_time(item['create_ts'])
-    set_reply_to(mail, item)
+    mail['Date'] = to_rfc822(item.creation_date())
+    item.set_reply_to(mail)
     charset = email.charset.Charset('utf-8')
-    mail.set_payload(payload(item), charset)
+    mail.set_payload(item.payload(), charset)
     return mail
 
 def send_to_mda(mail):
@@ -149,18 +182,9 @@ def fetch_thread(disc_sigid):
             item = result['item']
             child_id = item['_id']
             worklist.append(child_id)
-            results.append(item)
+            obj = build_item(item)
+            results.append(obj)
     return results
-
-def handle_item(state, item):
-    """
-    Build and send an email for a given item.
-    """
-    item_date = from_rfc8601(item['create_ts'])
-    if 'run_date' in state and item_date < state['run_date']:
-        return
-    mail = build_email(item)
-    send_to_mda(mail)
 
 def main():
     """
@@ -178,15 +202,16 @@ def main():
         for result in results:
             item = result['item']
             if item['type'] == 'submission':
+                obj = build_item(item)
                 print "%d - %s" % (item['id'], item['title'])
-                handle_item(state, item)
+                obj.send_as_email(state)
             else:
                 disc = item['discussion']
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
         for (disc_id, (sigid, title)) in discussions.iteritems():
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(sigid):
-                handle_item(state, item)
+                item.send_as_email(state)
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
 
