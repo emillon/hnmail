@@ -11,6 +11,7 @@ import os
 import pickle
 import requests
 import subprocess
+import sys
 import time
 
 from xdg.BaseDirectory import save_data_path
@@ -212,6 +213,8 @@ def main():
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(sigid):
                 item.send_as_email(state)
+                sys.stdout.write('.')
+            print ""
         newest = results[0]['item']
         state['run_date'] = from_rfc8601(newest['create_ts'])
 
