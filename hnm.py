@@ -135,12 +135,14 @@ def fetch_thread(disc_sigid):
     """
     Fetch the whole thread with given signed ID.
     """
+    max_res = 10
     worklist = [disc_sigid]
     results = []
     while worklist:
         sigid = worklist.pop(0)
         params = { 'filter[fields][parent_sigid]': sigid
                  , 'sortby': 'create_ts desc'
+                 , 'limit': max_res
                  }
         response = hnget(params)
         for result in response['results']:
