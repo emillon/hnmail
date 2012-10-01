@@ -169,7 +169,8 @@ def fetch_thread(disc_sigid):
         for result in response['results']:
             item = result['item']
             child_id = item['_id']
-            worklist.append(child_id)
+            if item['num_comments'] > 0:
+                worklist.append(child_id)
             yield build_item(item)
 
 def main():
