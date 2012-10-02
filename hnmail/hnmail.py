@@ -209,8 +209,9 @@ def main(network=None, mda_enabled=True):
                     sys.stdout.write('.')
                     sys.stdout.flush()
             print ""
-        newest = results[0]['item']
-        state['run_date'] = from_rfc8601(newest['create_ts'])
+        if len(results) > 0:
+            newest = results[0]['item']
+            state['run_date'] = from_rfc8601(newest['create_ts'])
 
 if __name__ == '__main__':
     main()
