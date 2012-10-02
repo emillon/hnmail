@@ -38,6 +38,15 @@ class HackerNewsApi:
         response = requests.get(URL, params=params)
         return json.loads(response.text)
 
+class ProcmailMDA:
+    def send_to(self, mail):
+        """
+        Send an email to a Mail Delivery Agent such as procmail.
+        """
+        proc = subprocess.Popen(MDA, stdin=subprocess.PIPE)
+        proc.communicate(mail.as_string())
+        proc.stdin.close()
+
 def msg_id(item_id):
     """
     Build a RFC822 Message-ID from a HN item id.
@@ -116,14 +125,6 @@ class TextItem(Item):
     def subject(self):
         return self.data['title']
 
-def send_to_mda(mail):
-    """
-    Send an email to a Mail Delivery Agent such as procmail.
-    """
-    proc = subprocess.Popen(MDA, stdin=subprocess.PIPE)
-    proc.communicate(mail.as_string())
-    proc.stdin.close()
-
 class State:
     """
     A context manager for the application state.
@@ -174,13 +175,15 @@ def fetch_thread(network, disc_sigid):
                 worklist.append(child_id)
             yield build_item(item)
 
-def main(network=None, mda_enabled=True):
+def main(network=None, mda=None):
     """
     Program entry point.
     """
     state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
     if network is None:
         network = HackerNewsApi()
+    if mda is None:
+        mda = ProcmailMDA()
     with State(state_file) as state:
         num_threads = 100
         params = { 'limit': num_threads
@@ -195,8 +198,7 @@ def main(network=None, mda_enabled=True):
                 obj = build_item(item)
                 if obj.needs_to_be_sent(state):
                     print "%d - %s" % (item['id'], item['title'])
-                    if mda_enabled:
-                        send_to_mda(obj.build_email())
+                    mda.send_to(obj.build_email())
             else:
                 disc = item['discussion']
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
@@ -204,14 +206,11 @@ def main(network=None, mda_enabled=True):
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(network, sigid):
                 if item.needs_to_be_sent(state):
-                    if mda_enabled:
-                        send_to_mda(item.build_email())
+                    mda.send_to(item.build_email())
                     sys.stdout.write('.')
                     sys.stdout.flush()
             print ""
-        if len(results) > 0:
-            newest = results[0]['item']
-            state['run_date'] = from_rfc8601(newest['create_ts'])
+        state['run_date'] = datetime.datetime.now()
 
 if __name__ == '__main__':
     main()
