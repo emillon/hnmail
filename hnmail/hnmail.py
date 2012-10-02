@@ -174,7 +174,7 @@ def fetch_thread(network, disc_sigid):
                 worklist.append(child_id)
             yield build_item(item)
 
-def main(network=None):
+def main(network=None, mda_enabled=True):
     """
     Program entry point.
     """
@@ -195,7 +195,8 @@ def main(network=None):
                 obj = build_item(item)
                 if obj.needs_to_be_sent(state):
                     print "%d - %s" % (item['id'], item['title'])
-                    send_to_mda(obj.build_email())
+                    if mda_enabled:
+                        send_to_mda(obj.build_email())
             else:
                 disc = item['discussion']
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
@@ -203,7 +204,8 @@ def main(network=None):
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(network, sigid):
                 if item.needs_to_be_sent(state):
-                    send_to_mda(item.build_email())
+                    if mda_enabled:
+                        send_to_mda(item.build_email())
                     sys.stdout.write('.')
                     sys.stdout.flush()
             print ""
