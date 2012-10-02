@@ -26,16 +26,17 @@ URL = 'http://api.thriftdb.com/api.hnsearch.com/items/_search'
 
 MDA = 'procmail'
 
-def hnget(params):
-    """
-    Get results from the Hacker News ThriftDB API.
-    The documentation of this API is available at:
-    http://www.hnsearch.com/api
-    Keyword arguments are passed as GET parameters and the result is returned as
-    a JSON object.
-    """
-    response = requests.get(URL, params=params)
-    return json.loads(response.text)
+class HackerNewsApi:
+    def get(self, params):
+        """
+        Get results from the Hacker News ThriftDB API.
+        The documentation of this API is available at:
+        http://www.hnsearch.com/api
+        Keyword arguments are passed as GET parameters and the result is returned as
+        a JSON object.
+        """
+        response = requests.get(URL, params=params)
+        return json.loads(response.text)
 
 def msg_id(item_id):
     """
@@ -153,7 +154,7 @@ class State:
     def __contains__(self, item):
         return item in self.data
 
-def fetch_thread(disc_sigid):
+def fetch_thread(network, disc_sigid):
     """
     Fetch the whole thread with given signed ID.
     """
@@ -165,7 +166,7 @@ def fetch_thread(disc_sigid):
                  , 'sortby': 'create_ts desc'
                  , 'limit': max_res
                  }
-        response = hnget(params)
+        response = network.get(params)
         for result in response['results']:
             item = result['item']
             child_id = item['_id']
@@ -173,17 +174,19 @@ def fetch_thread(disc_sigid):
                 worklist.append(child_id)
             yield build_item(item)
 
-def main():
+def main(network=None):
     """
     Program entry point.
     """
     state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
+    if network is None:
+        network = HackerNewsApi()
     with State(state_file) as state:
         num_threads = 100
         params = { 'limit': num_threads
                  , 'sortby': 'create_ts desc'
                  }
-        response = hnget(params)
+        response = network.get(params)
         results = response['results']
         discussions = {}
         for result in results:
@@ -198,7 +201,7 @@ def main():
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
         for (disc_id, (sigid, title)) in discussions.iteritems():
             print "%d - %s" % (disc_id, title)
-            for item in fetch_thread(sigid):
+            for item in fetch_thread(network, sigid):
                 if item.needs_to_be_sent(state):
                     send_to_mda(item.build_email())
                     sys.stdout.write('.')
