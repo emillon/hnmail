@@ -173,7 +173,7 @@ def fetch_thread(network, disc_sigid):
             child_id = item['_id']
             if item['num_comments'] > 0:
                 worklist.append(child_id)
-            yield build_item(item)
+            yield item
 
 def main(network=None, mda=None):
     """
@@ -192,9 +192,11 @@ def main(network=None, mda=None):
         response = network.get(params)
         results = response['results']
         discussions = {}
+        submissions = set()
         for result in results:
             item = result['item']
             if item['type'] == 'submission':
+                submissions.add(item['id'])
                 obj = build_item(item)
                 if obj.needs_to_be_sent(state):
                     print "%d - %s" % (item['id'], item['title'])
@@ -205,8 +207,11 @@ def main(network=None, mda=None):
         for (disc_id, (sigid, title)) in discussions.iteritems():
             print "%d - %s" % (disc_id, title)
             for item in fetch_thread(network, sigid):
-                if item.needs_to_be_sent(state):
-                    mda.send_to(item.build_email())
+                if item['type'] == 'submission' and item['id'] in submissions:
+                    continue
+                obj = build_item(item)
+                if obj.needs_to_be_sent(state):
+                    mda.send_to(obj.build_email())
                     sys.stdout.write('.')
                     sys.stdout.flush()
             print ""
