@@ -3,14 +3,8 @@
 import unittest
 import hnmail
 
-class TreeAPI:
-    def __init__(self, msgs=[]):
-        self.msgs = msgs
-
-    def get(self, params):
-        results = [ {'item' : msg} for msg in self.msgs ]
-        r = { 'results': results }
-        return r
+def sign(i):
+    return '%d-xxxx' % i
 
 class ListMDA:
     def __init__(self):
@@ -27,7 +21,7 @@ class Message:
         self.parent = None
         self.text = text
 
-class MsgMaker:
+class TreeAPI:
     def __init__(self):
         self.counter = 1
         self.disc = []
@@ -66,36 +60,41 @@ class MsgMaker:
         if is_root:
             r = None
         else:
-            r = { 'sigid': '%d-xxxx' % msg.ident
+            r = { 'sigid': sign(msg.ident)
                 , 'title': msg.title
                 , 'id': msg.ident
                 }
         return r
 
-    def msgs(self):
-        r = []
-        worklist = self.disc
-        while worklist:
-            msg = worklist.pop(0)
-            item = { 'type': msg.typ
-                   , 'id': msg.ident
-                   , '_id': '%d-xxxx' % msg.ident
-                   , 'url': msg.url
-                   , 'discussion': self.find_discussion(msg.ident)
-                   , 'num_comments': 0 # TODO len(msg.children)
-                   , 'create_ts': '2020-01-01T00:00:00Z'
-                   , 'username': 'michel'
-                   , 'parent_id': None
-                   }
-            if msg.title is not None:
-                item['title'] = msg.title
-            if msg.parent is not None:
-                item['parent_id'] = msg.parent.ident
-            if msg.text is not None:
-                item['text'] = msg.text
-            r.append(item)
-            for child in msg.children:
-                worklist.append(child)
+    def build_item(self, msg):
+        item = { 'type': msg.typ
+               , 'id': msg.ident
+               , '_id': sign(msg.ident)
+               , 'url': msg.url
+               , 'discussion': self.find_discussion(msg.ident)
+               , 'num_comments': len(msg.children)
+               , 'create_ts': '2020-01-01T00:00:00Z'
+               , 'username': 'michel'
+               , 'parent_id': None
+               }
+        if msg.title is not None:
+            item['title'] = msg.title
+        if msg.parent is not None:
+            item['parent_id'] = msg.parent.ident
+        if msg.text is not None:
+            item['text'] = msg.text
+        return item
+
+    def get(self, params):
+        msgs = self.all_msgs.values()
+        if 'filter[fields][parent_sigid]' in params:
+            pid = params['filter[fields][parent_sigid]']
+            def is_ok(msg):
+                return (msg.parent is not None
+                    and pid == sign(msg.parent.ident))
+            msgs = filter(is_ok, msgs)
+        results = [ {'item' : self.build_item(msg)} for msg in msgs ]
+        r = { 'results': results }
         return r
 
 class TestHN(unittest.TestCase):
@@ -105,21 +104,19 @@ class TestHN(unittest.TestCase):
         self.assertEquals(mda.msgs, [])
 
     def test_one_message(self):
+        t = TreeAPI()
         msg = Message(url='example.com', title='an example')
-        mk = MsgMaker()
-        mk.add_disc(msg)
-        t = TreeAPI(mk.msgs())
+        t.add_disc(msg)
         mda = ListMDA()
         hnmail.main(network=t, mda=mda)
         self.assertEquals(len(mda.msgs), 1)
 
     def test_comment(self):
-        mk = MsgMaker()
+        t = TreeAPI()
         msg1 = Message(url='example.com', title='an example')
-        id1 = mk.add_disc(msg1)
+        id1 = t.add_disc(msg1)
         msg2 = Message(text='A comment')
-        id2 = mk.add_to(id1, msg2)
-        t = TreeAPI(mk.msgs())
+        id2 = t.add_to(id1, msg2)
         mda = ListMDA()
         hnmail.main(network=t, mda=mda)
         self.assertEquals(len(mda.msgs), 2)
