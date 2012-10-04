@@ -175,11 +175,15 @@ def fetch_thread(network, disc_sigid):
                 worklist.append(child_id)
             yield item
 
-def main(network=None, mda=None):
+def main(network=None, mda=None, quiet=False):
     """
     Program entry point.
     """
     state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
+    def log(msg):
+        if quiet:
+            return
+        print msg
     if network is None:
         network = HackerNewsApi()
     if mda is None:
@@ -199,22 +203,23 @@ def main(network=None, mda=None):
                 submissions.add(item['id'])
                 obj = build_item(item)
                 if obj.needs_to_be_sent(state):
-                    print "%d - %s" % (item['id'], item['title'])
+                    log ("%d - %s" % (item['id'], item['title']))
                     mda.send_to(obj.build_email())
             else:
                 disc = item['discussion']
                 discussions[disc['id']] = (disc['sigid'], disc['title'])
         for (disc_id, (sigid, title)) in discussions.iteritems():
-            print "%d - %s" % (disc_id, title)
+            log ("%d - %s" % (disc_id, title))
             for item in fetch_thread(network, sigid):
                 if item['type'] == 'submission' and item['id'] in submissions:
                     continue
                 obj = build_item(item)
                 if obj.needs_to_be_sent(state):
                     mda.send_to(obj.build_email())
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
-            print ""
+                    if not quiet:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+            log ("")
         state['run_date'] = datetime.datetime.now()
 
 if __name__ == '__main__':
