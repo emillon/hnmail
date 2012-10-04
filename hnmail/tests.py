@@ -41,8 +41,18 @@ class TestHN(unittest.TestCase):
         for i in xrange(0, n):
             msg = Message(text='A comment')
             t.add_to(root, msg)
-        msgs = t.get({'limit': 10})
+        msgs = t.search({'limit': 10})
         self.assertEquals(len(msgs['results']), 10)
+
+    def test_wide_disc(self):
+        t = TreeAPI()
+        root = t.add_disc(Message(url='example.com', title='an example'))
+        n = 20
+        for i in xrange(0, n):
+            msg = Message(text='A comment')
+            t.add_to(root, msg)
+        msgs = run(t)
+        self.assertEquals(len(msgs), 1+n)
 
 if __name__ == '__main__':
     unittest.main()

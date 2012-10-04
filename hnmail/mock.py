@@ -1,6 +1,9 @@
 def sign(i):
     return '%d-xxxx' % i
 
+def unsign(s):
+    return int(s[:-5])
+
 class ListMDA:
     def __init__(self):
         self.msgs = []
@@ -80,7 +83,7 @@ class TreeAPI:
             item['text'] = msg.text
         return item
 
-    def get(self, params):
+    def search(self, params):
         msgs = self.all_msgs.values()
         if 'filter[fields][parent_sigid]' in params:
             pid = params['filter[fields][parent_sigid]']
@@ -95,3 +98,7 @@ class TreeAPI:
         r = { 'results': results }
         return r
 
+    def get_item(self, sig_id):
+        ident = unsign(sig_id)
+        msg = self.all_msgs[ident]
+        return self.build_item(msg)

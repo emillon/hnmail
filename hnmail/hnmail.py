@@ -22,12 +22,12 @@ import time
 
 from xdg.BaseDirectory import save_data_path
 
-URL = 'http://api.thriftdb.com/api.hnsearch.com/items/_search'
+URL = 'http://api.thriftdb.com/api.hnsearch.com'
 
 MDA = 'procmail'
 
 class HackerNewsApi:
-    def get(self, params):
+    def search(self, params):
         """
         Get results from the Hacker News ThriftDB API.
         The documentation of this API is available at:
@@ -35,7 +35,11 @@ class HackerNewsApi:
         Keyword arguments are passed as GET parameters and the result is returned as
         a JSON object.
         """
-        response = requests.get(URL, params=params)
+        response = requests.get(URL + '/items/_search', params=params)
+        return json.loads(response.text)
+
+    def get_item(self, sig_id):
+        response = requests.get(URL + '/items/' + sig_id)
         return json.loads(response.text)
 
 class ProcmailMDA:
@@ -155,24 +159,29 @@ class State:
     def __contains__(self, item):
         return item in self.data
 
-def fetch_thread(network, disc_sigid):
+def fetch_children(network, sigid, exp_children):
+    params = { 'filter[fields][parent_sigid]': sigid
+             , 'sortby': 'create_ts desc'
+             , 'limit': exp_children
+             }
+    return network.search(params)
+
+def fetch_thread(network, disc):
     """
     Fetch the whole thread with given signed ID.
     """
-    max_res = 10
-    worklist = [disc_sigid]
+    root_comments = network.get_item(disc)['num_comments']
+    worklist = [(disc, root_comments)]
     while worklist:
-        sigid = worklist.pop(0)
-        params = { 'filter[fields][parent_sigid]': sigid
-                 , 'sortby': 'create_ts desc'
-                 , 'limit': max_res
-                 }
-        response = network.get(params)
-        for result in response['results']:
+        (sigid, num_comments) = worklist.pop(0)
+        response = fetch_children(network, sigid, num_comments)
+        results = response['results']
+        for result in results:
             item = result['item']
             child_id = item['_id']
-            if item['num_comments'] > 0:
-                worklist.append(child_id)
+            width = item['num_comments']
+            if width > 0:
+                worklist.append((child_id, width))
             yield item
 
 def main(network=None, mda=None, quiet=False):
@@ -193,7 +202,7 @@ def main(network=None, mda=None, quiet=False):
         params = { 'limit': num_threads
                  , 'sortby': 'create_ts desc'
                  }
-        response = network.get(params)
+        response = network.search(params)
         results = response['results']
         discussions = {}
         submissions = set()
