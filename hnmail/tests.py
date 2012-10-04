@@ -34,5 +34,15 @@ class TestHN(unittest.TestCase):
         msgs = run(t)
         self.assertEquals(len(msgs), 2)
 
+    def test_limit(self):
+        t = TreeAPI()
+        root = t.add_disc(Message(url='example.com', title='an example'))
+        n = 20
+        for i in xrange(0, n):
+            msg = Message(text='A comment')
+            t.add_to(root, msg)
+        msgs = t.get({'limit': 10})
+        self.assertEquals(len(msgs['results']), 10)
+
 if __name__ == '__main__':
     unittest.main()

@@ -88,6 +88,9 @@ class TreeAPI:
                 return (msg.parent is not None
                     and pid == sign(msg.parent.ident))
             msgs = filter(is_ok, msgs)
+        if 'limit' in params:
+            lim = params['limit']
+            msgs = msgs[:lim]
         results = [ {'item' : self.build_item(msg)} for msg in msgs ]
         r = { 'results': results }
         return r
