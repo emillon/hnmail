@@ -100,7 +100,7 @@ class Item:
     def needs_to_be_sent(self, state):
         if state is None:
             return True
-        item_date = from_rfc8601(self.data['create_ts'])
+        item_date = self.creation_date()
         return ('run_date' not in state or item_date > state['run_date'])
 
     def creation_date(self):
