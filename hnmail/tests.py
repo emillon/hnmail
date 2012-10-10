@@ -10,7 +10,7 @@ def run(api):
     Build a MDA, run tests with given TreeAPI and return delivered messages.
     """
     mda = ListMDA()
-    hnmail.main(network=api, mda=mda, quiet=True)
+    hnmail.run(network=api, mda=mda, quiet=True)
     return mda.msgs
 
 class TestHN(unittest.TestCase):

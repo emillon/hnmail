@@ -184,11 +184,16 @@ def fetch_thread(network, disc):
                 worklist.append((child_id, width))
             yield item
 
-def main(network=None, mda=None, quiet=False):
+def run(network=None, mda=None, quiet=False, state=None):
     """
-    Program entry point.
+    Get new messages, and send them to a MDA.
+
+    Parameters :
+      - network : how to access the API. See HackerNewsApi.
+      - mda : how to deliver emails. See ProcmailMDA.
+      - quiet : emit messages or not.
+      - state : how to handle persistent state. See State.
     """
-    state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
     def log(msg):
         if quiet:
             return
@@ -197,39 +202,47 @@ def main(network=None, mda=None, quiet=False):
         network = HackerNewsApi()
     if mda is None:
         mda = ProcmailMDA()
-    with State(state_file) as state:
-        num_threads = 100
-        params = { 'limit': num_threads
-                 , 'sortby': 'create_ts desc'
-                 }
-        response = network.search(params)
-        results = response['results']
-        discussions = {}
-        submissions = set()
-        for result in results:
-            item = result['item']
-            if item['type'] == 'submission':
-                submissions.add(item['id'])
-                obj = build_item(item)
-                if obj.needs_to_be_sent(state):
-                    log ("%d - %s" % (item['id'], item['title']))
-                    mda.send_to(obj.build_email())
-            else:
-                disc = item['discussion']
-                discussions[disc['id']] = (disc['sigid'], disc['title'])
-        for (disc_id, (sigid, title)) in discussions.iteritems():
-            log ("%d - %s" % (disc_id, title))
-            for item in fetch_thread(network, sigid):
-                if item['type'] == 'submission' and item['id'] in submissions:
-                    continue
-                obj = build_item(item)
-                if obj.needs_to_be_sent(state):
-                    mda.send_to(obj.build_email())
-                    if not quiet:
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
-            log ("")
+    num_threads = 100
+    params = { 'limit': num_threads
+             , 'sortby': 'create_ts desc'
+             }
+    response = network.search(params)
+    results = response['results']
+    discussions = {}
+    submissions = set()
+    for result in results:
+        item = result['item']
+        if item['type'] == 'submission':
+            submissions.add(item['id'])
+            obj = build_item(item)
+            if state is None or obj.needs_to_be_sent(state):
+                log ("%d - %s" % (item['id'], item['title']))
+                mda.send_to(obj.build_email())
+        else:
+            disc = item['discussion']
+            discussions[disc['id']] = (disc['sigid'], disc['title'])
+    for (disc_id, (sigid, title)) in discussions.iteritems():
+        log ("%d - %s" % (disc_id, title))
+        for item in fetch_thread(network, sigid):
+            if item['type'] == 'submission' and item['id'] in submissions:
+                continue
+            obj = build_item(item)
+            if state is None or obj.needs_to_be_sent(state):
+                mda.send_to(obj.build_email())
+                if not quiet:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+        log ("")
+    if state:
         state['run_date'] = datetime.datetime.now()
+
+def main():
+    """
+    Program entry point.
+    """
+    state_file = os.path.join(save_data_path('hnmail'), 'state.pickle')
+    with State(state_file) as state:
+        run(state=state)
 
 if __name__ == '__main__':
     main()
