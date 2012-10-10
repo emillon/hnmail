@@ -98,6 +98,8 @@ class Item:
         return "Re: %s" % self.data['discussion']['title']
 
     def needs_to_be_sent(self, state):
+        if state is None:
+            return True
         item_date = from_rfc8601(self.data['create_ts'])
         return ('run_date' not in state or item_date > state['run_date'])
 
@@ -215,7 +217,7 @@ def run(network=None, mda=None, quiet=False, state=None):
         if item['type'] == 'submission':
             submissions.add(item['id'])
             obj = build_item(item)
-            if state is None or obj.needs_to_be_sent(state):
+            if obj.needs_to_be_sent(state):
                 log ("%d - %s" % (item['id'], item['title']))
                 mda.send_to(obj.build_email())
         else:
@@ -227,7 +229,7 @@ def run(network=None, mda=None, quiet=False, state=None):
             if item['type'] == 'submission' and item['id'] in submissions:
                 continue
             obj = build_item(item)
-            if state is None or obj.needs_to_be_sent(state):
+            if obj.needs_to_be_sent(state):
                 mda.send_to(obj.build_email())
                 if not quiet:
                     sys.stdout.write('.')
