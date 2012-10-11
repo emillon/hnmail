@@ -2,4 +2,4 @@ language: python
 python:
   - "2.6"
   - "2.7"
-script: "pylint --generated-members=text -E hnmail && python -m hnmail.tests"
+script: "pylint --generated-members=text,stdin -E hnmail && python -m hnmail.tests"
