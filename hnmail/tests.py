@@ -53,5 +53,28 @@ class TestHN(unittest.TestCase):
         msgs = self.run_hnmail()
         self.assertEquals(len(msgs), 1+n)
 
+    def test_deep_disc(self):
+        """
+        Ensure that thread fetching handles situations like
+
+            R
+            +-- A
+            |   +-- A1
+            |   +-- A2
+            |
+            +-- B
+                +-- B1
+                +-- B2
+        """
+        r  = self.api.add_disc(Message(url='example.com', title='an example'))
+        a  = self.api.add_to(r, Message(text='A comment'))
+        a1 = self.api.add_to(a, Message(text='A comment'))
+        a2 = self.api.add_to(a, Message(text='A comment'))
+        b  = self.api.add_to(r, Message(text='A comment'))
+        b1 = self.api.add_to(b, Message(text='A comment'))
+        b2 = self.api.add_to(b, Message(text='A comment'))
+        msgs = self.run_hnmail()
+        self.assertEquals(len(msgs), 7)
+
 if __name__ == '__main__':
     unittest.main()
